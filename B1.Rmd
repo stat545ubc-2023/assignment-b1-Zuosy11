@@ -1,0 +1,143 @@
+Exercise 1.
+
+From STAT 545A MDA project, I found it useful to create a function to compute the range, mean, median, and standard deviation of certain numeric variable across a categorical variable from the dataset.
+
+In addition, the built-in *range()* function can only return a vector, containing the minimum and maximum, which is hard to format into a single output table. For example, using the mtcars dataset:
+
+```{r}
+library(tidyverse)
+library(testthat)
+```
+
+```{r}
+head(mtcars)
+```
+
+If we try to find the range of mpg across cyl using *group_by()* and *summarize()*, the output table will have duplicated rows, which is not very convenient.
+
+```{r}
+example <- mtcars %>%
+  group_by(cyl) %>%
+  summarize(range = range(mpg))
+glimpse(example)
+```
+
+Moreover, it is also necessary to write a wrapper for the range() function since it can take \<chr\> as inputs, and it will output the first and last of the characters in alphabetical order. It also regards numeric values as minimum when the input is mixed. For example:
+
+```{r}
+example_2 <- c('apple','w','game','o')
+example_3 <- c(2, 'apple','w','game','o', 3, 10)
+range(example_2)
+range(example_3)
+```
+
+Therefore, I will create a function addressing the above problems. First I make sure the input 'var' is numeric, while the 'group' variable can be either type. I then convert the output of *range()* to a \<list\>, which is more convenient for further analysis and calculations.
+
+'data' is a data frame (extension); 'group' is a \<chr\> indicating the group variable in the dataset; 'var' is a \<chr\> indicating the numeric variable in the dataset; The output will be a tibble containing the range, mean, median, and standard deviation of 'var' across 'group' in 'data'.
+
+Exercise 2.
+
+```{r}
+#' Summary Statistics
+#'
+#' Compute summary statistics for a numeric variable across a group in a data frame.
+#'
+#' @param data A data frame.
+#' @param group A character indicating the group variable in the dataset.
+#' @param var A character indicating the numeric variable in the dataset.
+#' @param na.rm Logical, indicating whether to remove missing values (default is TRUE).
+#' @param ... Additional arguments to be passed to functions.
+#'
+#' @return A tibble containing the range, mean, median, and standard deviation of 'var' across 'group' in 'data'.
+#'
+#' @examples
+#' summary_statistics(iris, "Species", "Sepal.Length")
+#'
+#' @export
+summary_statistics <- function(data, group, var, na.rm = TRUE, ...) {
+  # Check if input variable is numeric
+  var_name <- as.character(substitute(var))
+  if (!is.numeric(data[[var_name]])) {
+    stop("Variable '", var_name, "' is not numeric in the data.")
+  }
+  
+  #Summary statistics
+  data %>%
+    group_by({{group}}) %>%
+    summarise(
+              'range' = list(range({{var}})), 
+              'mean' = mean({{var}}),
+              'median' = median({{var}}),
+              'std' = sd({{var}})
+    )
+}
+
+```
+
+Exercise 3.
+
+The built-in dataset 'iris' is first used to demonstrate the usage of this function. Notice that the dataset needn't to be a tibble.
+
+```{r}
+head(iris)
+```
+
+If we want to see the sepal length according to species, we can apply the function:
+
+```{r}
+glimpse(summary_statistics(iris, Species, Sepal.Length))
+```
+
+However, if 'var' is not numeric, the function will report error:
+
+```{r error=TRUE}
+glimpse(summary_statistics(iris, Sepal.Length, Species))
+```
+
+Moreover, 'group' can also be a numeric variable. We use 'mtcars' this time to see the mpg according to number of gears:
+
+```{r}
+glimpse(summary_statistics(mtcars, gear, mpg))
+```
+
+Exercise 4.
+
+In this exercise I will make two special data frames to test the function.
+
+Vector with no NA: 1) test if variable names are correct; 2) test if number of groups are correct, 3) test if range is a list type.
+
+```{r}
+test_that("Test 1: Vector with no NA", {
+  # create a random tibble with no NA
+  data <- tibble(
+    group = c(1,3,4,6,'chr',3,5,6,'chr',2),
+    value = c(3.14, 0.98, 7.25, 2.67, 5.42, 1.23, 8.56, 4.79, 6.33, 9.01)
+  )
+  # apply the function
+  result <- summary_statistics(data, group, value, na.rm = TRUE)
+
+  # test if variable names are correct; test if number of groups are correct, test if range is a list type
+  expect_true(all(c('group','range','mean','median','std') %in% colnames(result)))
+  expect_length(result$group, 7)
+  expect_type(result$range, 'list')
+  
+})
+```
+
+2.  Vector of a different type: 4) test if error occurs when var contains \<chr\>.
+
+```{r}
+test_that("Test 2: Vector of a different type", {
+  
+  # create a random tibble with no NA and var contains <chr>
+  data <- tibble(
+    group = c(1,3,4,6,4,3,5,6,7,2),
+    value = c(3,44,5,'a','b','c','d',3,6,1)
+  )
+  
+  # test if error occurs
+  
+  expect_error(summary_statistics(data, group, value, na.rm = TRUE))
+  
+})
+```
