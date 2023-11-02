@@ -1,3 +1,9 @@
+---
+output:
+  github_document
+---
+
+
 Exercise 1.
 
 From STAT 545A MDA project, I found it useful to create a function to compute the range, mean, median, and standard deviation of certain numeric variable across a categorical variable from the dataset.
